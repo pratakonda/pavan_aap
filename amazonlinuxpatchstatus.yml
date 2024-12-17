@@ -1,0 +1,10 @@
+---
+- name: Check patches needed for amazon linux node in aws
+  hosts: all
+  tasks:
+    - name: Check if required patches are applied
+      ansible.builtin.shell: yum list-security --security | awk 'NR>2 {print $1}'
+      register: output
+    - name: Print the patches needed
+      ansible.builtin.debug:
+        msg: "Patches needed: {{ output.stdout_lines }}"
