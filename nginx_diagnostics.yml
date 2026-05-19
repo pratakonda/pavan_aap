@@ -187,6 +187,5 @@
         msg: >-
           Skipped error.log excerpt (missing or unreadable).
           Path: {{ nginx_logs_dir }}/error.log
-      when: >-
-          not nginx_err_log_stat.stat.exists
-          or not nginx_err_log_stat.stat.readable
+      when:
+        - not nginx_err_log_stat.stat.exists or not nginx_err_log_stat.stat.readable
