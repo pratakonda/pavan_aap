@@ -1,0 +1,193 @@
+---
+# Nginx diagnostics for RHEL and derivatives (RHEL, Rocky, AlmaLinux, CentOS Stream).
+# Read-only checks suitable for troubleshooting configuration and runtime issues.
+#
+#   ansible-playbook -i inventory nginx_diagnostics.yml
+#   ansible-playbook -i inventory nginx_diagnostics.yml --limit web
+#
+- name: Diagnose nginx on RHEL-based servers
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    nginx_package_name: nginx
+    nginx_svc: nginx
+    nginx_logs_dir: /var/log/nginx
+    nginx_tail_lines: 50
+
+  tasks:
+    - name: Assert Red Hat family OS
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "RedHat"
+        quiet: true
+        fail_msg: >-
+          This playbook is written for ansible_os_family=RedHat (RHEL/Rocky/Alma/etc.).
+          Current host '{{ inventory_hostname }}' reports family '{{ ansible_os_family }}'.
+
+    - name: Refresh RPM package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Report nginx package presence
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          nginx_installed: "{{ nginx_package_name in ansible_facts.packages }}"
+          nginx_rpms:
+            "{{ nginx_package_name ~ ' not installed'
+               if nginx_package_name not in ansible_facts.packages
+               else ansible_facts.packages[nginx_package_name] }}"
+
+    - name: Stat nginx binary
+      ansible.builtin.stat:
+        path: /usr/sbin/nginx
+      register: nginx_binary
+
+    - name: Reminder when nginx is not installed
+      ansible.builtin.debug:
+        msg: >-
+          /usr/sbin/nginx not found.
+          Install with: dnf install {{ nginx_package_name }} (or equivalent).
+      when:
+        - not nginx_binary.stat.exists
+
+    - name: nginx -V (build and configure arguments; emits to stderr)
+      ansible.builtin.command: /usr/sbin/nginx -V
+      changed_when: false
+      failed_when: false
+      register: nginx_capital_v
+      when: nginx_binary.stat.exists
+
+    - name: Show nginx version output
+      ansible.builtin.debug:
+        msg: "{{ nginx_capital_v.stderr_lines | default(nginx_capital_v.stdout_lines) }}"
+      when:
+        - nginx_binary.stat.exists
+        - nginx_capital_v is defined
+
+    - name: Test nginx configuration (nginx -t)
+      ansible.builtin.command: nginx -t
+      changed_when: false
+      failed_when: false
+      register: nginx_test
+      when: nginx_binary.stat.exists
+
+    - name: Report nginx syntax test combined output
+      ansible.builtin.debug:
+        msg: "{{ (nginx_test.stdout_lines | default([])) + (nginx_test.stderr_lines | default([])) }}"
+      when:
+        - nginx_binary.stat.exists
+        - nginx_test is defined
+
+    - name: Collect local service facts
+      ansible.builtin.service_facts:
+
+    - name: Report nginx systemd unit
+      ansible.builtin.debug:
+        msg:
+          unit: "{{ nginx_svc }}.service"
+          fact: "{{ ansible_facts.services[nginx_svc + '.service']
+                       | default({'state':'absent'}, true) }}"
+
+    - name: systemd status nginx (verbatim)
+      ansible.builtin.command: systemctl status {{ nginx_svc }} --no-pager -l
+      changed_when: false
+      failed_when: false
+      register: nginx_systemctl_status
+      when: nginx_binary.stat.exists
+
+    - name: Show systemd status output
+      ansible.builtin.debug:
+        msg: "{{ nginx_systemctl_status.stdout_lines }}"
+      when:
+        - nginx_binary.stat.exists
+        - nginx_systemctl_status.rc == 0
+
+    - name: Journal excerpt for nginx unit
+      ansible.builtin.command: journalctl -u {{ nginx_svc }} -n 80 --no-pager
+      changed_when: false
+      failed_when: false
+      register: nginx_journal
+      when: nginx_binary.stat.exists
+
+    - name: Show recent journal entries
+      ansible.builtin.debug:
+        msg: "{{ nginx_journal.stdout_lines }}"
+      when:
+        - nginx_binary.stat.exists
+        - nginx_journal.rc == 0
+
+    - name: List listening sockets referencing nginx process
+      ansible.builtin.command: bash -lc "set -o pipefail; ss -tulpnH 2>/dev/null | grep -F nginx || true"
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
+      register: nginx_listen
+      when: nginx_binary.stat.exists
+
+    - name: Report nginx listeners (ss)
+      ansible.builtin.debug:
+        msg: "{{ nginx_listen.stdout_lines if nginx_listen.stdout | trim | length
+                  else ['No nginx-associated listeners found via ss (process may not be running).'] }}"
+      when:
+        - nginx_binary.stat.exists
+
+    - name: SELinux enforcing mode
+      ansible.builtin.command: getenforce
+      changed_when: false
+      failed_when: false
+      register: nginx_selinux_mode
+
+    - name: Show SELinux mode
+      ansible.builtin.debug:
+        msg:
+          getenforce: "{{ nginx_selinux_mode.stdout }}"
+          note: SELinux enforcing can deny binds, proxies, or file reads; review audit AVCs.
+
+    - name: Look for nginx-related SELinux AVCs (recent, best-effort)
+      ansible.builtin.command: bash -lc "command -v ausearch >/dev/null && ausearch -m AVC -ts recent -i 2>/dev/null | grep -i nginx || echo 'none or auditing tools unavailable'"
+      changed_when: false
+      failed_when: false
+      register: nginx_avc_hint
+
+    - name: Show AVC hint output
+      ansible.builtin.debug:
+        msg: "{{ nginx_avc_hint.stdout_lines }}"
+
+    - name: Stat nginx error.log
+      ansible.builtin.stat:
+        path: "{{ nginx_logs_dir }}/error.log"
+      register: nginx_err_log_stat
+
+    - name: Tail nginx error.log (if readable)
+      ansible.builtin.command: tail -n {{ nginx_tail_lines }} {{ nginx_logs_dir }}/error.log
+      changed_when: false
+      failed_when: false
+      register: nginx_error_tail
+      when:
+        - nginx_err_log_stat.stat.exists
+        - nginx_err_log_stat.stat.readable
+
+    - name: Show error.log excerpt
+      ansible.builtin.debug:
+        msg:
+          file: "{{ nginx_logs_dir }}/error.log"
+          lines: "{{ nginx_error_tail.stdout_lines }}"
+      when:
+        - nginx_err_log_stat.stat.exists
+        - nginx_err_log_stat.stat.readable
+        - nginx_error_tail is defined
+        - nginx_error_tail.rc == 0
+
+    - name: Note when error.log unreadable or absent
+      ansible.builtin.debug:
+        msg: >-
+          Skipped error.log excerpt (missing or unreadable).
+          Path: {{ nginx_logs_dir }}/error.log
+      when:
+        - not nginx_err_log_stat.stat.exists
+          or
+          not nginx_err_log_stat.stat.readable
