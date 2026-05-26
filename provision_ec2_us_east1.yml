@@ -68,24 +68,26 @@
     - ansible.builtin.set_fact:
         default_vpc_id: "{{ default_vpc.vpcs[0].vpc_id }}"
 
-    - name: Choose a subnet in the default VPC
+    - name: Gather subnets in default VPC
       amazon.aws.ec2_vpc_subnet_info:
         region: "{{ aws_region }}"
         filters:
           vpc-id: "{{ default_vpc_id }}"
-          default-for-az: "true"
-      register: subnet_info
-
-    - name: Choose any subnet in default VPC when no default subnet tag
-      when: subnet_info.subnets | length == 0
-      amazon.aws.ec2_vpc_subnet_info:
-        region: "{{ aws_region }}"
-        filters:
-          vpc-id: "{{ default_vpc_id }}"
-      register: subnet_info_fallback
+          state: available
+      register: vpc_subnets_all
 
     - ansible.builtin.set_fact:
-        subnet_candidates: "{{ subnet_info.subnets if (subnet_info.subnets | length) > 0 else subnet_info_fallback.subnets }}"
+        subnet_candidates: >-
+          {{
+            vpc_subnets_all.subnets
+            | rejectattr("map_public_ip_on_launch", "equalto", false)
+            | list
+          }}
+
+    - name: Fall back to any available subnet
+      ansible.builtin.set_fact:
+        subnet_candidates: "{{ vpc_subnets_all.subnets }}"
+      when: subnet_candidates | length == 0
 
     - name: Fail if no subnet exists in default VPC
       ansible.builtin.fail:
@@ -142,6 +144,8 @@
         image_id: "{{ ami_id }}"
         security_groups:
           - "{{ sg_name }}"
+        network:
+          assign_public_ip: true
         tags:
           Name: "{{ item }}"
           OS: amazon-linux
