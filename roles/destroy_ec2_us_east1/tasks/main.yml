@@ -1,0 +1,37 @@
+---
+- name: Terminate EC2 instances by Name tag
+  amazon.aws.ec2_instance:
+    region: "{{ aws_region }}"
+    state: absent
+    name: "{{ item }}"
+    wait: "{{ destroy_wait_instances }}"
+  loop: "{{ instance_pairs }}"
+  register: destroy_instances
+
+- name: Show termination results
+  ansible.builtin.debug:
+    var: destroy_instances.results
+
+- name: Look up SSH security group by name
+  when: destroy_remove_security_group | bool
+  amazon.aws.ec2_security_group_info:
+    region: "{{ aws_region }}"
+    filters:
+      group-name: "{{ sg_name }}"
+  register: destroy_sg_lookup
+
+- name: Delete SSH security group
+  when:
+    - destroy_remove_security_group | bool
+    - destroy_sg_lookup.security_groups | length > 0
+  amazon.aws.ec2_security_group:
+    region: "{{ aws_region }}"
+    state: absent
+    group_id: "{{ destroy_sg_lookup.security_groups[0].group_id }}"
+
+- name: Delete EC2 key pair in the region
+  when: destroy_remove_key_pair | bool
+  amazon.aws.ec2_key:
+    region: "{{ aws_region }}"
+    state: absent
+    name: "{{ ec2_key_name }}"

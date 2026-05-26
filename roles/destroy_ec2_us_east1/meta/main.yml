@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: destroy_ec2_us_east1
+  author: pratakonda
+  description: Terminate demo EC2 instances and optionally remove SG/key created by provision_ec2_us_east1.
+  license: MIT
+  min_ansible_version: "2.14"
+  galaxy_tags:
+    - aws
+    - ec2
+    - cloud
+
+collections:
+  - amazon.aws
+
+dependencies: []

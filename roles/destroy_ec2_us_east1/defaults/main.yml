@@ -1,0 +1,16 @@
+---
+aws_region: us-east-1
+ansible_al2023_host_1: al2023-demo-01
+ansible_al2023_host_2: al2023-demo-02
+instance_pairs:
+  - "{{ ansible_al2023_host_1 }}"
+  - "{{ ansible_al2023_host_2 }}"
+# Match provisioning role naming so teardown targets the same resources.
+ec2_key_name: ansible-al2023-us-east-1
+sg_name: ansible-al2023-ssh-sg
+# Wait for instances to fully terminate before removing the security group.
+destroy_wait_instances: true
+# Deletes the playbook-created SSH security group once instances are gone.
+destroy_remove_security_group: true
+# Key pairs cannot be redownloaded; default leaves the key unless you force removal.
+destroy_remove_key_pair: false
