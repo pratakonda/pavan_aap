@@ -1,2 +1,2 @@
-# PEM files generated beside this playbook during first key creation.
-/*.pem
+# PEM files saved when AWS generates a new key pair (first run).
+**/*.pem

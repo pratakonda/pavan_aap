@@ -1,0 +1,19 @@
+---
+aws_region: us-east-1
+ec2_key_name: ansible-al2023-us-east-1
+sg_name: ansible-al2023-ssh-sg
+# Restrict this in production; default is permissive for quick demos.
+ssh_cidr: "0.0.0.0/0"
+ami_name_pattern: "al2023-ami-*-*-x86_64"
+ansible_al2023_host_1: al2023-demo-01
+ansible_al2023_host_2: al2023-demo-02
+instance_pairs:
+  - "{{ ansible_al2023_host_1 }}"
+  - "{{ ansible_al2023_host_2 }}"
+instance_type: t3.micro
+# Directory on the controller where a new PEM is written (AWS returns it once).
+provision_ec2_private_key_dir: "{{ playbook_dir }}"
+provision_ec2_security_group_description: Ansible-managed SSH security group
+provision_ec2_instance_extra_tags:
+  OS: amazon-linux
+  ManagedBy: Ansible

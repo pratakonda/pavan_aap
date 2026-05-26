@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: provision_ec2_us_east1
+  author: pratakonda
+  description: >
+    Provision two Amazon Linux 2023 EC2 instances with a shared SSH key pair in AWS.
+  license: MIT
+  min_ansible_version: "2.14"
+  galaxy_tags:
+    - aws
+    - ec2
+    - cloud
+
+# Role tasks use amazon.aws modules.
+collections:
+  - amazon.aws
+
+dependencies: []
