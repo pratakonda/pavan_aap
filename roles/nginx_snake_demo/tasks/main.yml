@@ -3,10 +3,10 @@
   ansible.builtin.assert:
     that:
       - ansible_os_family == "RedHat"
-      - ansible_distribution is search("Amazon")
+      - ansible_distribution | default('') is regex('^(Amazon|Amazon Linux)( |$).*', ignorecase=true)
     fail_msg: >-
-      This role targets Amazon Linux (ansible_distribution should contain 'Amazon').
-      Host '{{ inventory_hostname }}' is {{ ansible_distribution }} / family {{ ansible_os_family }}.
+      This role targets Amazon Linux (distribution string should match Amazon*).
+      Host '{{ inventory_hostname }}' reports {{ ansible_distribution }} (family {{ ansible_os_family }}).
 
 - name: Refresh dnf cache and upgrade installed packages
   ansible.builtin.dnf:
