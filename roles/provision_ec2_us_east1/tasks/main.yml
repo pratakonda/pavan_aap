@@ -115,9 +115,7 @@
       - "{{ sg_name }}"
     network:
       assign_public_ip: true
-    tags:
-      Name: "{{ item }}"
-      "{{ provision_ec2_instance_extra_tags | dict2items | items2dict }}"
+    tags: "{{ provision_ec2_instance_extra_tags | combine({'Name': item}) }}"
   loop: "{{ instance_pairs }}"
   register: launched
 
