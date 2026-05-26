@@ -3,12 +3,15 @@
 #
 #   ansible-playbook -i inventory nginx_snake_demo.yml
 #
-# Internet access requires:
-# - EC2/security group (or cloud firewall) allows TCP {{ nginx_snake_listen_port }} from the Internet
-# - Optional: set nginx_snake_configure_firewall=true to open local firewalld (if installed)
+# Automation Controller: prefer inventory without the implicit controller host, or set:
+#   extra variable nginx_snake_inventory_pattern=all:aws (example group containing EC2 hosts)
+# AWX attaches cloud AWS cred for modules; SSH still requires a Machine credential with the EC2 PEM
+# for user ec2-user (Amazon Linux) and ingress TCP/22 from the execution node/instance.
+#
+# Internet access requires EC2 SG (or firewall) permits TCP nginx_snake_listen_port (default 80).
 
 - name: Deploy nginx Snake demo on Amazon Linux
-  hosts: all
+  hosts: "{{ nginx_snake_inventory_pattern | default('all:!localhost') }}"
   gather_facts: true
   become: true
   roles:
