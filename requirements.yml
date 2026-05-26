@@ -1,7 +1,9 @@
 ---
-# Install Ansible collections declared for aws playbooks.
-# Usage: ansible-galaxy collection install -r requirements.yml
+# Install Ansible collections:
+#   ansible-galaxy collection install -r requirements.yml
 
 collections:
   - name: amazon.aws
     version: ">=7.0.0"
+  - name: ansible.posix
+    version: ">=1.5.0"

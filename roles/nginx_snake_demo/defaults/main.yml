@@ -1,0 +1,7 @@
+---
+nginx_snake_listen_port: 80
+nginx_snake_document_root: /usr/share/nginx/html
+# When true, installs firewalld if missing and opens the HTTP service (Amazon Linux may rely on cloud SG only).
+nginx_snake_configure_firewall: false
+# Remove Amazon Linux default site snippet if it exists (avoids duplicate default_server fights).
+nginx_snake_remove_default_conf: true

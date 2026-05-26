@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: nginx_snake_demo
+  author: pratakonda
+  description: Update Amazon Linux, install nginx, and publish a static Snake demo site.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Amazon
+  galaxy_tags:
+    - nginx
+    - amazon-linux
+    - web
+
+collections:
+  - ansible.posix
+
+dependencies: []

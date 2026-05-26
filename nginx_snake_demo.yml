@@ -1,0 +1,15 @@
+---
+# Install nginx on Amazon Linux, apply updates, and serve a browser Snake demo on port 80.
+#
+#   ansible-playbook -i inventory nginx_snake_demo.yml
+#
+# Internet access requires:
+# - EC2/security group (or cloud firewall) allows TCP {{ nginx_snake_listen_port }} from the Internet
+# - Optional: set nginx_snake_configure_firewall=true to open local firewalld (if installed)
+
+- name: Deploy nginx Snake demo on Amazon Linux
+  hosts: all
+  gather_facts: true
+  become: true
+  roles:
+    - nginx_snake_demo
