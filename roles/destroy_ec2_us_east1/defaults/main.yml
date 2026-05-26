@@ -10,6 +10,10 @@ ec2_key_name: ansible-al2023-us-east-1
 sg_name: ansible-al2023-ssh-sg
 # Wait for instances to fully terminate before removing the security group.
 destroy_wait_instances: true
+# Find and terminate EC2 instances that reference the demo SG (fixes Name mismatches).
+destroy_terminate_by_security_group: true
+# Optional pause before SG delete while ENIs detach (DependencyViolation backoff).
+destroy_pause_before_sg_seconds: 30
 # Deletes the playbook-created SSH security group once instances are gone.
 destroy_remove_security_group: true
 # Key pairs cannot be redownloaded; default leaves the key unless you force removal.

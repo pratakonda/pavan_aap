@@ -1,4 +1,33 @@
 ---
+- name: Look up SSH security group by name (needed for SG-based instance discovery)
+  when:
+    - destroy_remove_security_group | bool or destroy_terminate_by_security_group | bool
+  amazon.aws.ec2_security_group_info:
+    region: "{{ aws_region }}"
+    filters:
+      group-name: "{{ sg_name }}"
+  register: destroy_sg_lookup
+
+- name: Find EC2 instances that still reference the demo security group
+  when:
+    - destroy_terminate_by_security_group | bool
+    - destroy_sg_lookup.security_groups | default([]) | length > 0
+  amazon.aws.ec2_instance_info:
+    region: "{{ aws_region }}"
+    filters:
+      instance.group-id: "{{ destroy_sg_lookup.security_groups[0].group_id }}"
+  register: destroy_sg_instances
+
+- name: Terminate instances tied to that security group
+  when:
+    - destroy_terminate_by_security_group | bool
+    - destroy_sg_instances.instances | default([]) | length > 0
+  amazon.aws.ec2_instance:
+    region: "{{ aws_region }}"
+    state: absent
+    instance_ids: "{{ destroy_sg_instances.instances | map(attribute='instance_id') | list }}"
+    wait: "{{ destroy_wait_instances }}"
+
 - name: Terminate EC2 instances by Name tag
   amazon.aws.ec2_instance:
     region: "{{ aws_region }}"
@@ -12,18 +41,17 @@
   ansible.builtin.debug:
     var: destroy_instances.results
 
-- name: Look up SSH security group by name
-  when: destroy_remove_security_group | bool
-  amazon.aws.ec2_security_group_info:
-    region: "{{ aws_region }}"
-    filters:
-      group-name: "{{ sg_name }}"
-  register: destroy_sg_lookup
+- name: Wait for ENIs to detach before deleting the security group
+  when:
+    - destroy_remove_security_group | bool
+    - (destroy_pause_before_sg_seconds | default(0) | int) > 0
+  ansible.builtin.pause:
+    seconds: "{{ destroy_pause_before_sg_seconds | int }}"
 
 - name: Delete SSH security group
   when:
     - destroy_remove_security_group | bool
-    - destroy_sg_lookup.security_groups | length > 0
+    - destroy_sg_lookup.security_groups | default([]) | length > 0
   amazon.aws.ec2_security_group:
     region: "{{ aws_region }}"
     state: absent
